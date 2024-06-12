@@ -11,7 +11,7 @@ Cross-site scripting: injects malicious JavaScript code into a vulnerable websit
 Directory brute force: attempts to brute-force a website's directory structure
 Password cracking: attempts to crack a website's password using a dictionary attack
 Usage
-Clone this repository: git clone https://github.com/your-github-username/webhacker.git
+Clone this repository: git clone https://github.com/thekingboyyy/cybersecurity.git
 Install the required dependencies: pip install requests
 Run the script: python webhacker.py
 Choose an option from the menu to perform a web hacking task
