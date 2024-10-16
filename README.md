@@ -23,6 +23,3 @@ This script is licensed under the MIT License. See the LICENSE file for more inf
 
 Contributing
 Contributions are welcome! If you'd like to contribute to this script, please open an issue or submit a pull request.
-
-Acknowledgments
-This script was inspired by various web hacking tools and resources. Special thanks to [list any resources or people you'd like to acknowledge].
