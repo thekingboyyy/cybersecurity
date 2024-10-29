@@ -8,7 +8,7 @@ fi
 
 echo "Running Ubuntu Hardening Script......."
 
-wait 3s
+sleep 3
 
 # Variables
 echo "Creating a backup directory"
@@ -33,12 +33,12 @@ mkdir -p $BACKUP_DIR || handle_error "Failed to create backup directory"
 
 
 log "Updating and upgrading the system..."
-wait 3s
+sleep 3
 apt-get update && apt-get upgrade -y >> $LOGFILE 2>&1 || handle_error "System update failed"
 
 
 log "Installing necessary security packages..."
-wait 3s
+sleep 3
 apt-get install -y ufw fail2ban clamav rkhunter aide >> $LOGFILE 2>&1 || handle_error "Package installation failed"
 
 echo "Configureing UFW (Uncomplicated Firewall)........."
@@ -54,7 +54,7 @@ fi
 
 
 log "Enhancing SSH security..."
-wait 3s
+sleep 3
 cp /etc/ssh/sshd_config $BACKUP_DIR/sshd_config.bak
 sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -65,24 +65,24 @@ systemctl restart sshd >> $LOGFILE 2>&1 || handle_error "SSH configuration faile
 
 
 log "Setting up Fail2Ban....."
-wait 3s
+sleep 3
 systemctl enable fail2ban
 systemctl start fail2ban >> $LOGFILE 2>&1 || handle_error "Fail2Ban setup failed"
 
 
 log "Updating ClamAV database....."
-wait 3s
+sleep 3
 freshclam >> $LOGFILE 2>&1 || handle_error "ClamAV update failed"
 
 
 log "Initializing AIDE....."
-wait 3s
+sleep 3
 aideinit >> $LOGFILE 2>&1 || handle_error "AIDE initialization failed"
 mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
 
 
 log "Configuring password policies....."
-wait 3s
+sleep 3
 cp /etc/login.defs $BACKUP_DIR/login.defs.bak
 cat <<EOL >> /etc/login.defs
 PASS_MAX_DAYS   90
@@ -91,7 +91,7 @@ PASS_MIN_LEN    12
 EOL
 
 echo "Disable unused services"
-wait 3s
+sleep 3
 read -p "Do you want to disable avahi-daemon? (y/n) " disable_avahi
 if [ "$disable_avahi" = "y" ]; then
     log "Disabling avahi-daemon..."
@@ -106,13 +106,13 @@ fi
 
 
 log "Setting up automatic security updates....."
-wait 3s
+sleep 3
 apt-get install -y unattended-upgrades || handle_error "Failed to install unattended-upgrades"
 dpkg-reconfigure --priority=low unattended-upgrades
 
 
 log "Configuring sysctl for enhanced security......"
-wait 3s
+sleep 3
 cp /etc/sysctl.conf $BACKUP_DIR/sysctl.conf.bak
 cat <<EOL >> /etc/sysctl.conf
 # Disable IP forwarding
@@ -128,16 +128,16 @@ sysctl -p >> $LOGFILE 2>&1 || handle_error "sysctl configuration failed"
 
 # Run rkhunter and AIDE checks
 log "Running rkhunter check..."
-wait 3s
+sleep 3
 rkhunter --check >> $LOGFILE 2>&1 || handle_error "rkhunter check failed"
 
 log "Running AIDE check..."
-wait 3s
+sleep 3
 aide --check >> $LOGFILE 2>&1 || handle_error "AIDE check failed"
 
 
 log "Creating rollback script....."
-wait 3s
+sleep 3
 cat <<EOL > $BACKUP_DIR/rollback.sh
 #!/bin/bash
 # Rollback script for Ubuntu Hardening
@@ -166,8 +166,8 @@ chmod +x $BACKUP_DIR/rollback.sh
 
 # Final message
 log "System hardening completed. Backup of original configurations and rollback script stored in $BACKUP_DIR."
-wait 1s
+sleep 1
 log "To rollback changes, run $BACKUP_DIR/rollback.sh as root."
-wait 2s
+sleep 3
 echo "system script's has completed"
 echo "Thank you"
