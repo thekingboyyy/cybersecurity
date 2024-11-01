@@ -50,6 +50,8 @@ sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow ssh
 sudo ufw enable
+ufw logging on
+ufw logging high
 echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
 
 echo "wait...."
@@ -163,8 +165,63 @@ echo "Ensure all services are legitimate."
 
 echo "wait...."
 sleep 2
+######## Note section ################
+# service --status-all
+# Look for hacking tools, games, and other unwanted/unneccessary packages
 
-service --status-all
+# $ apt-cache policy $package
+# $ which $package
+# $ dpkg-query -l | grep -E '^ii' | less
+## $ userdel -r $user
+## $ groupdel $user
+: ' BAD STUFF
+john, nmap, vuze, frostwire, kismet, freeciv, minetest, minetest-server, medusa, hydra, truecrack, ophcrack, nikto, cryptcat, nc, netcat, tightvncserver, x11vnc, nfs, xinetd
+POSSIBLY BAD STUFF
+samba, postgresql, sftpd, vsftpd, apache, apache2, ftp, mysql, php, snmp, pop3, icmp, sendmail, dovecot, bind9, nginx
+MEGA BAD STUFF
+telnet, rlogind, rshd, rcmd, rexecd, rbootd, rquotad, rstatd, rusersd, rwalld, rexd, fingerd, tftpd, telnet, snmp, netcat, NC 
+Service & Application Hardening
 
+
+Configure OpenSSH Server in /etc/ssh/sshd_config
+
+Protocol 2
+LogLevel VERBOSE
+X11Forwarding no
+MaxAuthTries 4
+IgnoreRhosts yes
+HostbasedAuthentication no
+PermitRootLogin no
+PermitEmptyPasswords no
+
+
+Configure apache2 in /etc/apache2/apache2.conf
+ServerSignature Off
+ServerTokens Prod
+
+Cron
+
+
+Check your users crontabs
+crontab -e
+
+
+Check /etc/cron.*/, /etc/crontab, and /var/spool/cron/crontabs/
+
+
+Check init files in /etc/init/ and /etc/init.d/
+
+
+Remove contents of /etc/rc.local
+echo "exit 0" > /etc/rc.local
+
+
+Check user crontabs
+crontab -u $user -l
+
+
+Deny users use of cron jobs
+echo "ALL" >> /etc/cron.deny
+'
 
 echo " ******** All done Thank you *********"
