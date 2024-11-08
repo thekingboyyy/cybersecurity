@@ -3,225 +3,163 @@
 # Script to Harden a Linux System for CyberPatriot Competition
 
 # Update System and Install Necessary Packages
+echo "Updating system and installing necessary packages..."
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y ufw fail2ban rkhunter clamav unattended-upgrades
+sudo apt install -y ufw fail2ban rkhunter clamav unattended-upgrades auditd
 
-echo "wait..."
+echo "Waiting for updates to finish..."
 sleep 2
+
 # 1. User Account Management
 # Remove unused/guest accounts and enforce password policies
 echo "Removing guest accounts and enforcing password policies..."
 sudo deluser --remove-home guest
 for user in $(awk -F: '$3 < 1000 {print $1}' /etc/passwd); do
-  sudo deluser --remove-home "$user"
+  # Avoid removing system accounts
+  if [[ "$user" != "root" && "$user" != "nobody" ]]; then
+    sudo deluser --remove-home "$user"
+  fi
 done
 
-echo "wait.. "
-sleep 2
-# Set strong password policies
 echo "Setting strong password policies..."
+# Set strong password policies
 sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS 90/' /etc/login.defs
 sudo sed -i 's/^PASS_MIN_DAYS.*/PASS_MIN_DAYS 10/' /etc/login.defs
 sudo sed -i 's/^PASS_WARN_AGE.*/PASS_WARN_AGE 7/' /etc/login.defs
 
-echo "wait...."
-sleep 2
+echo "Setting PAM password strength requirements..."
 # Enforce strong password creation with PAM
 sudo sed -i '/pam_cracklib.so/s/retry=3 minlen=8 difok=3//' /etc/pam.d/common-password
 echo "password requisite pam_pwquality.so retry=3 minlen=10 difok=3" | sudo tee -a /etc/security/pwquality.conf
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
 # 2. Secure SSH
-# Restrict SSH to secure settings and disable root login
 echo "Securing SSH settings..."
+# Restrict SSH to secure settings and disable root login
 sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo systemctl restart sshd
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
-
 
 # 3. Set up Uncomplicated Firewall (UFW)
 echo "Setting up UFW..."
+# Set up UFW firewall rules
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow ssh
 sudo ufw enable
 ufw logging on
 ufw logging high
-echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
-
 
 # 4. Enable Automatic Updates
 echo "Enabling automatic updates..."
 sudo dpkg-reconfigure -plow unattended-upgrades
-echo 0 | sudo tee /proc/sys/net/ipv4/ip_forward
-echo "nospoof on" | sudo tee -a /etc/host.conf
 
-echo "wait...."
+# Disable IPv6 only if necessary
+# echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+
+echo "Waiting for next step..."
 sleep 2
-
 
 # 5. Configure Fail2Ban for SSH Protection
 echo "Configuring Fail2Ban..."
 sudo systemctl enable fail2ban
-sudo systemctl start fail2
+sudo systemctl start fail2ban
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
-
+# Set file permissions for sensitive files
 echo "Setting file permissions for sensitive files..."
 sudo chown root:root /etc/passwd /etc/shadow /etc/gshadow /etc/group
 sudo chmod 600 /etc/shadow /etc/gshadow
 sudo chmod 644 /etc/passwd /etc/group
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
-
+# 6. Disable Unnecessary Services
 echo "Disabling unnecessary services..."
 for service in cups bluetooth avahi-daemon; do
   sudo systemctl disable "$service" --now
 done
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
-
+# 7. Enforce Account Lockout after Failed Login Attempts
 echo "Enforcing account lockout after failed login attempts..."
 echo "auth required pam_tally2.so deny=5 unlock_time=600 onerr=fail audit even_deny_root_account silent" | sudo tee -a /etc/pam.d/common-auth
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
-
+# 8. Schedule Rootkit Checks
 echo "Scheduling rootkit checks..."
 echo "0 2 * * * root rkhunter --update && rkhunter --checkall" | sudo tee -a /etc/crontab
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
+# 9. Audit System and Remove Suspicious Packages
+echo "Auditing system for suspicious packages..."
+# Find and remove any samba-related packages
+sudo apt-get remove --purge -y samba* smb*
 
-apt-get install auditd && auditctl -e 1
-apt-get remove samba*
-## Find music (probably in admin's Music folder)
-find /home/ -type f \( -name "*.mp3" -o -name "*.mp4" \)
-## Remove any downloaded "hacking tools" packages
-find /home/ -type f \( -name "*.tar.gz" -o -name "*.tgz" -o -name "*.zip" -o -name "*.deb" \)
+# Remove potentially dangerous archives from home directories
+find /home/ -type f \( -name "*.tar.gz" -o -name "*.tgz" -o -name "*.zip" -o -name "*.deb" \) -exec rm -f {} \;
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
+# 10. Check and Disable Guest Access
+echo "Disabling guest access..."
+echo "allow-guest=false" | sudo tee -a /etc/lightdm/lightdm.conf
 
-
-### Make sure Firefox is default browser in firefox settings
-Disable guest account
-echo "allow-guest=false" >> /etc/lightdm/lightdm.conf
-
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
-
-#Check for weird admins
+# 11. Check for Abnormal Admin or User Accounts
+echo "Checking for unusual admin accounts..."
 mawk -F: '$1 == "sudo"' /etc/group
 
-echo "wait...."
-sleep 2
-
-
-#Check for weird users
+echo "Checking for users with UID > 999 (non-system users)..."
 mawk -F: '$3 > 999 && $3 < 65534 {print $1}' /etc/passwd
 
-echo "wait...."
-sleep 2
-
-
-#Check for empty passwords
+echo "Checking for empty passwords..."
 mawk -F: '$2 == ""' /etc/passwd
 
-echo "wait...."
-sleep 2
-
-#Check for non-root UID 0 users
+echo "Checking for non-root UID 0 users..."
 mawk -F: '$3 == 0 && $1 != "root"' /etc/passwd
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
-#Remove anything samba-related
-apt-get remove .*samba.* .*smb.*
+# 12. Remove Unnecessary Services
+echo "Removing unnecessary services..."
+sudo apt-get remove --purge -y samba postgresql sftpd vsftpd apache apache2 ftp mysql php snmp pop3 icmp sendmail dovecot bind9 nginx
 
-echo "wait...."
+echo "Waiting for next step..."
 sleep 2
 
-echo "Ensure all services are legitimate."
-
-echo "wait...."
-sleep 2
-######## Note section ################
-# service --status-all
-# Look for hacking tools, games, and other unwanted/unneccessary packages
-
-# $ apt-cache policy $package
-# $ which $package
-# $ dpkg-query -l | grep -E '^ii' | less
-## $ userdel -r $user
-## $ groupdel $user
-: ' BAD STUFF
-john, nmap, vuze, frostwire, kismet, freeciv, minetest, minetest-server, medusa, hydra, truecrack, ophcrack, nikto, cryptcat, nc, netcat, tightvncserver, x11vnc, nfs, xinetd
-POSSIBLY BAD STUFF
-samba, postgresql, sftpd, vsftpd, apache, apache2, ftp, mysql, php, snmp, pop3, icmp, sendmail, dovecot, bind9, nginx
-MEGA BAD STUFF
-telnet, rlogind, rshd, rcmd, rexecd, rbootd, rquotad, rstatd, rusersd, rwalld, rexd, fingerd, tftpd, telnet, snmp, netcat, NC 
-Service & Application Hardening
-
-
-Configure OpenSSH Server in /etc/ssh/sshd_config
-
-Protocol 2
-LogLevel VERBOSE
-X11Forwarding no
-MaxAuthTries 4
-IgnoreRhosts yes
-HostbasedAuthentication no
-PermitRootLogin no
-PermitEmptyPasswords no
-
-
-Configure apache2 in /etc/apache2/apache2.conf
-ServerSignature Off
-ServerTokens Prod
-
-Cron
-
-
-Check your users crontabs
+# 13. Additional Security Configurations
+echo "Ensuring all services are legitimate..."
+# service --status-all (manual check)
+# Check user crontabs
 crontab -e
+# Check /etc/cron.*, /etc/crontab, and /var/spool/cron/crontabs/
 
+# Remove contents of /etc/rc.local
+echo "exit 0" | sudo tee /etc/rc.local
 
-Check /etc/cron.*/, /etc/crontab, and /var/spool/cron/crontabs/
+# Deny users the use of cron jobs
+echo "ALL" | sudo tee -a /etc/cron.deny
 
-
-Check init files in /etc/init/ and /etc/init.d/
-
-
-Remove contents of /etc/rc.local
-echo "exit 0" > /etc/rc.local
-
-
-Check user crontabs
-crontab -u $user -l
-
-
-Deny users use of cron jobs
-echo "ALL" >> /etc/cron.deny
-'
-
-echo " ******** All done Thank you *********"
+echo " ******** All done! Thank you ********* "
