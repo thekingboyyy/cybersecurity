@@ -6,9 +6,11 @@
 echo "Updating system and installing necessary packages..."
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y ufw fail2ban rkhunter clamav unattended-upgrades auditd
+apt-get -V -y install firefox hardinfo chkrootkit iptables portsentry lynis gufw sysv-rc-conf nessus
+apt-get -V -y install --reinstall coreutils
 
 echo "Waiting for updates to finish..."
-sleep 2
+sleep 5 
 
 # 1. User Account Management
 # Remove unused/guest accounts and enforce password policies
@@ -33,7 +35,7 @@ sudo sed -i '/pam_cracklib.so/s/retry=3 minlen=8 difok=3//' /etc/pam.d/common-pa
 echo "password requisite pam_pwquality.so retry=3 minlen=10 difok=3" | sudo tee -a /etc/security/pwquality.conf
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 2. Secure SSH
 echo "Securing SSH settings..."
@@ -43,7 +45,7 @@ sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/s
 sudo systemctl restart sshd
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 3. Set up Uncomplicated Firewall (UFW)
 echo "Setting up UFW..."
@@ -56,7 +58,7 @@ ufw logging on
 ufw logging high
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 4. Enable Automatic Updates
 echo "Enabling automatic updates..."
@@ -66,7 +68,7 @@ sudo dpkg-reconfigure -plow unattended-upgrades
 # echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 5. Configure Fail2Ban for SSH Protection
 echo "Configuring Fail2Ban..."
@@ -74,7 +76,7 @@ sudo systemctl enable fail2ban
 sudo systemctl start fail2ban
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # Set file permissions for sensitive files
 echo "Setting file permissions for sensitive files..."
@@ -83,7 +85,7 @@ sudo chmod 600 /etc/shadow /etc/gshadow
 sudo chmod 644 /etc/passwd /etc/group
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 6. Disable Unnecessary Services
 echo "Disabling unnecessary services..."
@@ -92,21 +94,21 @@ for service in cups bluetooth avahi-daemon; do
 done
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 7. Enforce Account Lockout after Failed Login Attempts
 echo "Enforcing account lockout after failed login attempts..."
 echo "auth required pam_tally2.so deny=5 unlock_time=600 onerr=fail audit even_deny_root_account silent" | sudo tee -a /etc/pam.d/common-auth
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 8. Schedule Rootkit Checks
 echo "Scheduling rootkit checks..."
 echo "0 2 * * * root rkhunter --update && rkhunter --checkall" | sudo tee -a /etc/crontab
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 9. Audit System and Remove Suspicious Packages
 echo "Auditing system for suspicious packages..."
@@ -117,7 +119,7 @@ sudo apt-get remove --purge -y samba* smb*
 find /home/ -type f \( -name "*.tar.gz" -o -name "*.tgz" -o -name "*.zip" -o -name "*.deb" \) -exec rm -f {} \;
 
 echo "Waiting for next step..."
-sleep 2
+sleep 5
 
 # 10. Check and Disable Guest Access
 echo "Disabling guest access..."
@@ -147,7 +149,7 @@ echo "Removing unnecessary services..."
 sudo apt-get remove --purge -y samba postgresql sftpd vsftpd apache apache2 ftp mysql php snmp pop3 icmp sendmail dovecot bind9 nginx
 
 echo "Waiting for next step..."
-sleep 2
+sleep 4
 
 # 13. Additional Security Configurations
 echo "Ensuring all services are legitimate..."
@@ -161,5 +163,34 @@ echo "exit 0" | sudo tee /etc/rc.local
 
 # Deny users the use of cron jobs
 echo "ALL" | sudo tee -a /etc/cron.deny
+
+echo "Waiting for the next step........."
+sleep 4
+
+echo "media file deletion"
+find / -name '*.mp3' -type f -delete
+find / -name '*.mov' -type f -delete
+find / -name '*.mp4' -type f -delete
+find / -name '*.avi' -type f -delete
+find / -name '*.mpg' -type f -delete
+find / -name '*.mpeg' -type f -delete
+find / -name '*.flac' -type f -delete
+find / -name '*.m4a' -type f -delete
+find / -name '*.flv' -type f -delete
+find / -name '*.ogg' -type f -delete
+find /home -name '*.gif' -type f -delete
+find /home -name '*.png' -type f -delete
+find /home -name '*.jpg' -type f -delete
+find /home -name '*.jpeg' -type f -delete
+
+echo "Moving on..........."
+sleep 3
+
+echo "information gathering"
+hardinfo -r -f html 
+chkrootkit 
+lynis -c 
+freshclam
+clamscan -r /
 
 echo " ******** All done! Thank you ********* "
